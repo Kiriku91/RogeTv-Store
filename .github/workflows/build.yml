@@ -1,4 +1,4 @@
-name: Build Roge Store APK
+name: Build & Auto-Deploy Roge Store APK
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout Source Code
@@ -19,6 +19,15 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Buat Keystore Tetap (Agar Update APK Tidak Konflik Signature)
+        run: |
+          mkdir -p ~/.android
+          rm -f ~/.android/debug.keystore
+          keytool -genkey -v -keystore ~/.android/debug.keystore \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
@@ -26,6 +35,15 @@ jobs:
 
       - name: Build Debug APK
         run: gradle assembleDebug --no-daemon
+
+      - name: Kirim APK Otomatis ke VPS (rogeproject.my.id)
+        run: |
+          RESPONSE=$(curl -s -X POST "https://rogeproject.my.id/store/admin.php" \
+            -F "github_auto_deploy=1" \
+            -F "secret_key=${{ secrets.STORE_SECRET }}" \
+            -F "version_code=${{ github.run_number }}" \
+            -F "store_apk=@app/build/outputs/apk/debug/app-debug.apk")
+          echo "Respon Server VPS: $RESPONSE"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
