@@ -92,7 +92,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupMainLayout();
-        fetchCatalog(false);
+        // Otomatis cek katalog & cek pembaruan aplikasi Roge Store saat dibuka
+        fetchCatalog(true);
     }
 
     @Override
@@ -290,7 +291,6 @@ public class MainActivity extends Activity {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
 
-        // Top Bar
         container.addView(buildTopHeader(false));
 
         // Banner Hero
@@ -489,16 +489,28 @@ public class MainActivity extends Activity {
         container.addView(buildSettingItem(
                 "Cek Pembaruan",
                 "Periksa versi terbaru Roge Store dari server",
-                () -> checkStoreSelfUpdate()
+                () -> {
+                    Toast.makeText(this, "Memeriksa pembaruan...", Toast.LENGTH_SHORT).show();
+                    fetchCatalog(true, true);
+                }
         ));
 
         container.addView(buildSettingItem(
                 "Tentang Roge Store",
                 "Informasi aplikasi toko dan versi saat ini",
                 () -> {
+                    String verName = "1.0";
+                    int verCode = 1;
+                    try {
+                        PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                        verName = pInfo.versionName;
+                        verCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                                ? (int) pInfo.getLongVersionCode() : pInfo.versionCode;
+                    } catch (Exception ignored) {}
+
                     new AlertDialog.Builder(this)
                             .setTitle("Tentang Roge Store")
-                            .setMessage("Roge Store TV v1.0\n\nToko aplikasi mandiri khusus Android TV & STB.\nServer: rogeproject.my.id")
+                            .setMessage("Roge Store TV v" + verName + " (Build " + verCode + ")\n\nToko aplikasi mandiri khusus Android TV & STB.\nServer: rogeproject.my.id")
                             .setPositiveButton("Tutup", null)
                             .show();
                 }
@@ -607,7 +619,7 @@ public class MainActivity extends Activity {
         applyFocusStyle(btnRefresh, COLOR_CARD_BG, COLOR_CARD_FOCUS, COLOR_BORDER, COLOR_ACCENT, 12);
         btnRefresh.setOnClickListener(v -> {
             Toast.makeText(this, "Memperbarui katalog...", Toast.LENGTH_SHORT).show();
-            fetchCatalog(false);
+            fetchCatalog(true);
         });
         header.addView(btnRefresh);
 
@@ -637,6 +649,10 @@ public class MainActivity extends Activity {
 
     // ================= KONEKSI API & SELF-UPDATE =================
     private void fetchCatalog(boolean checkStoreUpdate) {
+        fetchCatalog(checkStoreUpdate, false);
+    }
+
+    private void fetchCatalog(boolean checkStoreUpdate, boolean isManualCheck) {
         executor.execute(() -> {
             try {
                 URL url = new URL(API_URL + "?t=" + System.currentTimeMillis());
@@ -675,7 +691,7 @@ public class MainActivity extends Activity {
                     allApps.addAll(temp);
                     filterApps(etSearch != null ? etSearch.getText().toString() : "");
                     if (checkStoreUpdate) {
-                        checkStoreSelfUpdate();
+                        checkStoreSelfUpdate(isManualCheck);
                     }
                 });
             } catch (Exception e) {
@@ -695,26 +711,29 @@ public class MainActivity extends Activity {
         if (appAdapter != null) appAdapter.notifyDataSetChanged();
     }
 
-    private void checkStoreSelfUpdate() {
+    private void checkStoreSelfUpdate(boolean showLatestToast) {
         try {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
             int currentCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                     ? (int) pInfo.getLongVersionCode() : pInfo.versionCode;
             if (serverStoreVersion > currentCode && !serverStoreApkUrl.isEmpty()) {
                 AppItem storeItem = new AppItem();
-                storeItem.name = "Roge Store Update";
+                storeItem.name = "Roge Store (Update v1." + serverStoreVersion + ")";
                 storeItem.apkUrl = serverStoreApkUrl;
                 new AlertDialog.Builder(this)
-                        .setTitle("Pembaruan Tersedia")
-                        .setMessage("Versi terbaru Roge Store tersedia. Unduh dan pasang sekarang?")
+                        .setTitle("Pembaruan Roge Store Tersedia!")
+                        .setMessage("Versi terbaru (Build " + serverStoreVersion + ") telah rilis.\nUnduh dan perbarui aplikasi toko sekarang?")
+                        .setCancelable(false)
                         .setPositiveButton("Update Sekarang", (d, w) -> startDownloadAndInstall(storeItem))
                         .setNegativeButton("Nanti", null)
                         .show();
-            } else {
-                Toast.makeText(this, "Roge Store sudah menggunakan versi terbaru!", Toast.LENGTH_SHORT).show();
+            } else if (showLatestToast) {
+                Toast.makeText(this, "Roge Store sudah menggunakan versi terbaru (Build " + currentCode + ")!", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
-            Toast.makeText(this, "Gagal memeriksa versi.", Toast.LENGTH_SHORT).show();
+            if (showLatestToast) {
+                Toast.makeText(this, "Gagal memeriksa versi.", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -729,7 +748,7 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ================= ADAPTER DAFTAR APLIKASI (MODEL BARIS SEPERTI FOTO 2) =================
+    // ================= ADAPTER DAFTAR APLIKASI =================
     class AppListAdapter extends BaseAdapter {
         @Override public int getCount() { return filteredApps.size(); }
         @Override public Object getItem(int position) { return filteredApps.get(position); }
@@ -745,7 +764,6 @@ public class MainActivity extends Activity {
             row.setPadding(dp(18), dp(16), dp(20), dp(16));
             applyFocusStyle(row, COLOR_CARD_BG, COLOR_CARD_FOCUS, COLOR_BORDER, COLOR_ACCENT, 14);
 
-            // Ikon Aplikasi di Kiri
             ImageView icon = new ImageView(MainActivity.this);
             LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(68), dp(68));
             iconParams.rightMargin = dp(18);
@@ -755,7 +773,6 @@ public class MainActivity extends Activity {
             loadIcon(item.iconUrl, icon);
             row.addView(icon);
 
-            // Detail Teks di Tengah
             LinearLayout textCol = new LinearLayout(MainActivity.this);
             textCol.setOrientation(LinearLayout.VERTICAL);
             textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
@@ -785,7 +802,6 @@ public class MainActivity extends Activity {
             textCol.addView(tvMeta);
             row.addView(textCol);
 
-            // Tombol Install / Buka di Kanan
             int status = getAppStatus(item.packageName, item.versionCode);
             TextView actionBtn = new TextView(MainActivity.this);
             actionBtn.setTextSize(14);
