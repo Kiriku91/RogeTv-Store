@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -19,14 +22,22 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Buat Keystore Tetap (Agar Update APK Tidak Konflik Signature)
+      - name: Gunakan atau Buat Keystore Permanen
         run: |
           mkdir -p ~/.android
-          rm -f ~/.android/debug.keystore
-          keytool -genkey -v -keystore ~/.android/debug.keystore \
-            -storepass android -alias androiddebugkey -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
+          if [ ! -f "roge.keystore" ]; then
+            echo "Membuat roge.keystore permanen pertama kali..."
+            keytool -genkey -v -keystore roge.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add roge.keystore
+            git commit -m "Simpan keystore permanen untuk OTA Update [skip ci]"
+            git push
+          fi
+          cp -f roge.keystore ~/.android/debug.keystore
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
