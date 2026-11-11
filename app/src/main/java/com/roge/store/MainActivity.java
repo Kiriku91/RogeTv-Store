@@ -3,9 +3,11 @@ package com.roge.store;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -54,7 +56,6 @@ public class MainActivity extends Activity {
 
     private static final String API_URL = "https://rogeproject.my.id/store/api.php";
 
-    // Palet Warna Dominan Biru Kehijauan (Teal / Cyan Ocean)
     private final int COLOR_BG_TOP = Color.parseColor("#041C2C");
     private final int COLOR_BG_BOTTOM = Color.parseColor("#073B4C");
     private final int COLOR_CARD_BG = Color.parseColor("#660A2E40");
@@ -92,7 +93,6 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setupMainLayout();
-        // Otomatis cek katalog & cek pembaruan aplikasi Roge Store saat dibuka
         fetchCatalog(true);
     }
 
@@ -151,14 +151,13 @@ public class MainActivity extends Activity {
         root.setBackground(mainBg);
         root.setPadding(dp(28), dp(24), dp(28), dp(24));
 
-        // ================= 1. SIDEBAR KIRI =================
+        // SIDEBAR KIRI
         LinearLayout sidebar = new LinearLayout(this);
         sidebar.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams sideParams = new LinearLayout.LayoutParams(dp(230), ViewGroup.LayoutParams.MATCH_PARENT);
         sideParams.rightMargin = dp(28);
         sidebar.setLayoutParams(sideParams);
 
-        // Brand Logo & Judul
         LinearLayout brandBox = new LinearLayout(this);
         brandBox.setOrientation(LinearLayout.HORIZONTAL);
         brandBox.setGravity(Gravity.CENTER_VERTICAL);
@@ -196,7 +195,6 @@ public class MainActivity extends Activity {
         brandBox.addView(brandTextLayout);
         sidebar.addView(brandBox);
 
-        // Kotak Perangkat Aktif
         LinearLayout deviceBox = new LinearLayout(this);
         deviceBox.setOrientation(LinearLayout.VERTICAL);
         deviceBox.setPadding(dp(16), dp(14), dp(16), dp(14));
@@ -223,7 +221,6 @@ public class MainActivity extends Activity {
         deviceBox.addView(tvDeviceSidebar);
         sidebar.addView(deviceBox);
 
-        // Menu Navigasi Sidebar
         navBeranda = createNavButton("⌂   Beranda", () -> switchPage(0));
         navAplikasi = createNavButton("❖   Aplikasi", () -> switchPage(1));
         navPengaturan = createNavButton("⚙   Pengaturan", () -> switchPage(2));
@@ -234,7 +231,7 @@ public class MainActivity extends Activity {
 
         root.addView(sidebar);
 
-        // ================= 2. AREA KONTEN KANAN =================
+        // AREA KONTEN KANAN
         contentArea = new FrameLayout(this);
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
@@ -283,17 +280,14 @@ public class MainActivity extends Activity {
         pagePengaturan.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
     }
 
-    // ================= HALAMAN 1: BERANDA =================
     private View buildBerandaPage() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
 
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
-
         container.addView(buildTopHeader(false));
 
-        // Banner Hero
         LinearLayout hero = new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
         hero.setPadding(dp(28), dp(28), dp(28), dp(28));
@@ -333,17 +327,14 @@ public class MainActivity extends Activity {
         hero.addView(heroBadges);
         container.addView(hero);
 
-        // Card 1: Perangkat Aktif
-        LinearLayout cardDev = buildActionCard(
+        container.addView(buildActionCard(
                 "Perangkat aktif",
                 getDeviceModel() + " • " + getAndroidVersion(),
                 "Ganti perangkat",
                 () -> showChangeDeviceDialog()
-        );
-        container.addView(cardDev);
+        ));
 
-        // Card 2: Pintasan Daftar Aplikasi
-        LinearLayout cardApps = buildActionCard(
+        container.addView(buildActionCard(
                 "Daftar Aplikasi",
                 "Lihat dan pasang aplikasi yang telah disiapkan untuk perangkat Anda.",
                 "Lihat aplikasi",
@@ -351,8 +342,7 @@ public class MainActivity extends Activity {
                     switchPage(1);
                     listViewApps.requestFocus();
                 }
-        );
-        container.addView(cardApps);
+        ));
 
         scroll.addView(container);
         return scroll;
@@ -371,8 +361,7 @@ public class MainActivity extends Activity {
 
         LinearLayout textCol = new LinearLayout(this);
         textCol.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams colParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        textCol.setLayoutParams(colParams);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
@@ -403,11 +392,9 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    // ================= HALAMAN 2: DAFTAR APLIKASI =================
     private View buildAplikasiPage() {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
-
         container.addView(buildTopHeader(true));
 
         TextView tvHeading = new TextView(this);
@@ -441,7 +428,6 @@ public class MainActivity extends Activity {
         return container;
     }
 
-    // ================= HALAMAN 3: PENGATURAN =================
     private View buildPengaturanPage() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -561,7 +547,6 @@ public class MainActivity extends Activity {
         return item;
     }
 
-    // ================= HEADER KANAN ATAS (SEARCH & REFRESH) =================
     private View buildTopHeader(boolean withSearch) {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -647,7 +632,6 @@ public class MainActivity extends Activity {
                 .show();
     }
 
-    // ================= KONEKSI API & SELF-UPDATE =================
     private void fetchCatalog(boolean checkStoreUpdate) {
         fetchCatalog(checkStoreUpdate, false);
     }
@@ -657,6 +641,7 @@ public class MainActivity extends Activity {
             try {
                 URL url = new URL(API_URL + "?t=" + System.currentTimeMillis());
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setUseCaches(false);
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(10000);
 
@@ -718,17 +703,19 @@ public class MainActivity extends Activity {
                     ? (int) pInfo.getLongVersionCode() : pInfo.versionCode;
             if (serverStoreVersion > currentCode && !serverStoreApkUrl.isEmpty()) {
                 AppItem storeItem = new AppItem();
-                storeItem.name = "Roge Store (Update v1." + serverStoreVersion + ")";
-                storeItem.apkUrl = serverStoreApkUrl;
+                storeItem.name = "Roge Store (Build " + serverStoreVersion + ")";
+                storeItem.packageName = getPackageName();
+                storeItem.versionCode = serverStoreVersion;
+                storeItem.apkUrl = serverStoreApkUrl + (serverStoreApkUrl.contains("?") ? "&t=" : "?t=") + System.currentTimeMillis();
                 new AlertDialog.Builder(this)
                         .setTitle("Pembaruan Roge Store Tersedia!")
-                        .setMessage("Versi terbaru (Build " + serverStoreVersion + ") telah rilis.\nUnduh dan perbarui aplikasi toko sekarang?")
+                        .setMessage("Versi saat ini: Build " + currentCode + "\nVersi terbaru: Build " + serverStoreVersion + "\n\nUnduh dan perbarui aplikasi toko sekarang?")
                         .setCancelable(false)
                         .setPositiveButton("Update Sekarang", (d, w) -> startDownloadAndInstall(storeItem))
                         .setNegativeButton("Nanti", null)
                         .show();
             } else if (showLatestToast) {
-                Toast.makeText(this, "Roge Store sudah menggunakan versi terbaru (Build " + currentCode + ")!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Roge Store sudah versi terbaru (Build " + currentCode + ")!", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             if (showLatestToast) {
@@ -748,7 +735,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // ================= ADAPTER DAFTAR APLIKASI =================
     class AppListAdapter extends BaseAdapter {
         @Override public int getCount() { return filteredApps.size(); }
         @Override public Object getItem(int position) { return filteredApps.get(position); }
@@ -860,6 +846,19 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void cleanOldApks(File dir) {
+        if (dir != null && dir.exists()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().endsWith(".apk")) {
+                        f.delete();
+                    }
+                }
+            }
+        }
+    }
+
     private void startDownloadAndInstall(AppItem item) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!getPackageManager().canRequestPackageInstalls()) {
@@ -879,14 +878,24 @@ public class MainActivity extends Activity {
 
         executor.execute(() -> {
             try {
+                cleanOldApks(getExternalCacheDir());
+                cleanOldApks(getCacheDir());
+
                 URL url = new URL(item.apkUrl);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setInstanceFollowRedirects(true);
+                conn.setUseCaches(false);
+                conn.setRequestProperty("Cache-Control", "no-cache");
                 conn.connect();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw new Exception("Server merespon kode HTTP " + responseCode);
+                }
 
                 int fileLength = conn.getContentLength();
                 File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
-                File apkFile = new File(cacheDir, "download_temp.apk");
-                if (apkFile.exists()) apkFile.delete();
+                File apkFile = new File(cacheDir, "update_" + System.currentTimeMillis() + ".apk");
 
                 InputStream input = conn.getInputStream();
                 FileOutputStream output = new FileOutputStream(apkFile);
@@ -905,10 +914,11 @@ public class MainActivity extends Activity {
                 output.flush();
                 output.close();
                 input.close();
+                apkFile.setReadable(true, false);
 
                 mainHandler.post(() -> {
                     pd.dismiss();
-                    installApk(apkFile);
+                    verifyAndInstallApk(apkFile);
                 });
             } catch (Exception e) {
                 mainHandler.post(() -> {
@@ -919,17 +929,82 @@ public class MainActivity extends Activity {
         });
     }
 
-    private void installApk(File apkFile) {
+    // Validasi integritas file APK & kecocokan Signature sebelum memanggil PackageInstaller
+    private void verifyAndInstallApk(File apkFile) {
         try {
-            Intent intent = new Intent(Intent.ACTION_VIEW);
+            PackageManager pm = getPackageManager();
+            PackageInfo archiveInfo = pm.getPackageArchiveInfo(apkFile.getAbsolutePath(), PackageManager.GET_SIGNATURES);
+            if (archiveInfo == null) {
+                new AlertDialog.Builder(this)
+                        .setTitle("File APK Rusak / Tidak Valid")
+                        .setMessage("File yang diunduh dari server bukan file APK yang valid (Ukuran: " + (apkFile.length() / 1024) + " KB).")
+                        .setPositiveButton("Tutup", null)
+                        .show();
+                return;
+            }
+
+            String pkgName = archiveInfo.packageName;
+            int newVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                    ? (int) archiveInfo.getLongVersionCode() : archiveInfo.versionCode;
+
+            try {
+                PackageInfo installedInfo = pm.getPackageInfo(pkgName, PackageManager.GET_SIGNATURES);
+                int installedVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                        ? (int) installedInfo.getLongVersionCode() : installedInfo.versionCode;
+
+                // Cek apakah Signature (Keystore) APK lama berbeda dengan APK baru
+                if (installedInfo.signatures != null && archiveInfo.signatures != null
+                        && installedInfo.signatures.length > 0 && archiveInfo.signatures.length > 0) {
+                    Signature oldSig = installedInfo.signatures[0];
+                    Signature newSig = archiveInfo.signatures[0];
+                    if (!oldSig.equals(newSig)) {
+                        new AlertDialog.Builder(this)
+                                .setTitle("Konflik Kunci Sertifikat (Keystore)")
+                                .setMessage("Aplikasi " + pkgName + " yang terpasang di perangkat saat ini menggunakan kunci lama yang berbeda dengan APK baru di server.\n\nAndroid menolak menimpa aplikasi dengan kunci berbeda. Silakan hapus (Uninstall) versi lama terlebih dahulu.")
+                                .setPositiveButton("Uninstall Versi Lama", (d, w) -> {
+                                    Intent uninstallIntent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkgName));
+                                    startActivity(uninstallIntent);
+                                })
+                                .setNegativeButton("Batal", null)
+                                .show();
+                        return;
+                    }
+                }
+
+                // Cek jika versi APK di server lebih rendah dari yang sudah terpasang
+                if (newVerCode < installedVerCode) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Versi APK Lebih Rendah (Downgrade)")
+                            .setMessage("APK yang diunduh memiliki Build " + newVerCode + ", sedangkan yang sudah terpasang adalah Build " + installedVerCode + ".")
+                            .setPositiveButton("Tetap Coba Install", (d, w) -> launchSystemInstaller(apkFile))
+                            .setNegativeButton("Batal", null)
+                            .show();
+                    return;
+                }
+            } catch (PackageManager.NameNotFoundException ignored) {
+                // Aplikasi belum terpasang, aman untuk langsung diinstal
+            }
+
+            launchSystemInstaller(apkFile);
+        } catch (Exception e) {
+            launchSystemInstaller(apkFile);
+        }
+    }
+
+    private void launchSystemInstaller(File apkFile) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
             Uri apkUri;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 apkUri = Uri.parse("content://" + getPackageName() + ".provider/" + apkFile.getName());
+                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                intent.setClipData(ClipData.newRawUri("", apkUri));
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             } else {
                 apkUri = Uri.fromFile(apkFile);
+                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
             }
-            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             startActivity(intent);
         } catch (Exception e) {
