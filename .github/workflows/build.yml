@@ -24,12 +24,68 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Validasi & Konversi Gambar Drawable
+      - name: Olah Otomatis Gambar Drawable & Kartu Ikon TV
         run: |
-          mkdir -p app/src/main/res/drawable
-          find app/src/main/res/drawable -type f ! \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \) -delete
-          python3 -m pip install --break-system-packages -q pillow || true
-          python3 -c 'import os; from PIL import Image; d="app/src/main/res/drawable"; [ (Image.open(os.path.join(d,f)).convert("RGBA").save(os.path.join(d,os.path.splitext(f)[0].lower()+".png"),"PNG"), os.remove(os.path.join(d,f)) if not f.endswith(".png") or f!=f.lower() else None) for f in list(os.listdir(d)) if os.path.isfile(os.path.join(d,f)) ]; [ Image.new("RGBA",(64,64),(0,229,255,255)).save(os.path.join(d,n)) for n in ["logo.png","banner.png"] if not os.path.exists(os.path.join(d,n)) ]; print("Drawable OK:", os.listdir(d))'
+          python3 -m pip install --break-system-packages -q pillow
+          python3 - << 'PYEOF'
+          import os, re
+          from PIL import Image, ImageDraw
+
+          d = "app/src/main/res/drawable"
+          os.makedirs(d, exist_ok=True)
+
+          for f in list(os.listdir(d)):
+              p = os.path.join(d, f)
+              if not os.path.isfile(p):
+                  continue
+              if f.startswith(".") or not f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                  os.remove(p)
+                  continue
+              base = re.sub(r"[^a-z0-9_]", "_", os.path.splitext(f)[0].lower())
+              out_p = os.path.join(d, base + ".png")
+              img = Image.open(p).convert("RGBA")
+              if p != out_p:
+                  os.remove(p)
+              img.save(out_p, "PNG")
+
+          bg_path = os.path.join(d, "bg.png")
+          if os.path.exists(bg_path):
+              bg = Image.open(bg_path).convert("RGB")
+              bg = bg.resize((1280, 720), Image.LANCZOS)
+              bg.save(bg_path, "PNG")
+
+          banner_path = os.path.join(d, "banner.png")
+          if os.path.exists(banner_path):
+              b_img = Image.open(banner_path).convert("RGBA")
+              bbox = b_img.getbbox()
+              if bbox:
+                  b_img = b_img.crop(bbox)
+              b_img.save(banner_path, "PNG")
+
+          logo_path = os.path.join(d, "logo.png")
+          if not os.path.exists(logo_path):
+              Image.new("RGBA", (256, 256), (0, 229, 255, 255)).save(logo_path, "PNG")
+
+          # Buat kartu ikon layar depan Android TV (320x180 penuh dengan Logo Roge Store di tengah)
+          tv_banner_path = os.path.join(d, "tv_banner.png")
+          tv_b = Image.new("RGBA", (320, 180), (5, 28, 42, 255))
+          draw = ImageDraw.Draw(tv_b)
+          for y in range(180):
+              r = int(4 + (y / 180.0) * 6)
+              g = int(24 + (y / 180.0) * 32)
+              b = int(38 + (y / 180.0) * 44)
+              draw.line([(0, y), (320, y)], fill=(r, g, b, 255))
+
+          lg = Image.open(logo_path).convert("RGBA")
+          lbbox = lg.getbbox()
+          if lbbox:
+              lg = lg.crop(lbbox)
+          lg.thumbnail((250, 145), Image.LANCZOS)
+          tv_b.paste(lg, ((320 - lg.width) // 2, (180 - lg.height) // 2), lg)
+          tv_b.save(tv_banner_path, "PNG")
+
+          print("Final drawable:", os.listdir(d))
+          PYEOF
 
       - name: Pastikan roge.keystore Permanen Tersedia
         run: |
