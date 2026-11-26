@@ -24,48 +24,67 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Validasi & Perbaiki Format Gambar Drawable
+      - name: Validasi & Perbaiki Folder Drawable
         run: |
-          python3 -c '
-          import os, re
+          python3 - << 'EOF'
+          import os, re, struct, zlib
+
           d = "app/src/main/res/drawable"
-          if os.path.isdir(d):
-              for f in os.listdir(d):
-                  p = os.path.join(d, f)
-                  if not os.path.isfile(p):
-                      continue
-                  if f.startswith(".") or not f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-                      print("Menghapus file tidak valid di drawable:", f)
-                      os.remove(p)
-                      continue
-                  clean_f = re.sub(r"[^a-z0-9_.]", "_", f.lower())
-                  if clean_f != f:
-                      clean_p = os.path.join(d, clean_f)
-                      if os.path.exists(clean_p):
-                          os.remove(clean_p)
-                      os.rename(p, clean_p)
-                      p, f = clean_p, clean_f
-                  with open(p, "rb") as fp:
-                      head = fp.read(4)
-                  if f.lower().endswith(".png") and head[:3] == b"\xff\xd8\xff":
-                      new_p = os.path.splitext(p)[0] + ".jpg"
-                      if os.path.exists(new_p):
-                          os.remove(new_p)
-                      os.rename(p, new_p)
-                      print("Perbaikan otomatis fake PNG ke JPG:", f, "->", os.path.basename(new_p))
-              seen = {}
-              for f in sorted(os.listdir(d)):
-                  p = os.path.join(d, f)
-                  if not os.path.isfile(p):
-                      continue
-                  base = os.path.splitext(f)[0].lower()
-                  if base in seen:
-                      print("Menghapus duplikat resource:", f)
-                      os.remove(p)
-                  else:
-                      seen[base] = f
-              print("Isi final folder drawable:", os.listdir(d))
-          '
+          os.makedirs(d, exist_ok=True)
+
+          for f in os.listdir(d):
+              p = os.path.join(d, f)
+              if not os.path.isfile(p):
+                  continue
+              if f.startswith(".") or not f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                  print("Hapus file sampah:", f)
+                  os.remove(p)
+                  continue
+              clean_f = re.sub(r"[^a-z0-9_.]", "_", f.lower())
+              if clean_f != f:
+                  clean_p = os.path.join(d, clean_f)
+                  if os.path.exists(clean_p):
+                      os.remove(clean_p)
+                  os.rename(p, clean_p)
+                  p, f = clean_p, clean_f
+              with open(p, "rb") as fp:
+                  head = fp.read(4)
+              if f.lower().endswith(".png") and head[:3] == b"\xff\xd8\xff":
+                  new_p = os.path.splitext(p)[0] + ".jpg"
+                  if os.path.exists(new_p):
+                      os.remove(new_p)
+                  os.rename(p, new_p)
+                  print("Ubah fake PNG ke JPG:", f, "->", os.path.basename(new_p))
+
+          seen = {}
+          for f in sorted(os.listdir(d)):
+              p = os.path.join(d, f)
+              if not os.path.isfile(p):
+                  continue
+              base = os.path.splitext(f)[0].lower()
+              if base in seen:
+                  print("Hapus duplikat:", f)
+                  os.remove(p)
+              else:
+                  seen[base] = f
+
+          def make_png(path, w, h, rgba):
+              raw = b"".join(b"\x00" + bytes(rgba) * w for _ in range(h))
+              def chunk(tag, data):
+                  return struct.pack("!I", len(data)) + tag + data + struct.pack("!I", zlib.crc32(tag + data) & 0xffffffff)
+              png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack("!IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
+              with open(path, "wb") as fp:
+                  fp.write(png)
+
+          if "logo" not in seen:
+              make_png(os.path.join(d, "logo.png"), 64, 64, (0, 229, 255, 255))
+              print("Buat fallback logo.png")
+          if "banner" not in seen:
+              make_png(os.path.join(d, "banner.png"), 320, 180, (4, 28, 44, 255))
+              print("Buat fallback banner.png")
+
+          print("Isi final drawable:", os.listdir(d))
+          EOF
 
       - name: Pastikan roge.keystore Permanen Tersedia
         run: |
@@ -87,7 +106,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
-          cache-disabled: true
 
       - name: Clean & Build APK
         run: gradle clean assembleDebug --no-daemon
