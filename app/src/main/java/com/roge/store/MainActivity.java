@@ -56,13 +56,14 @@ public class MainActivity extends Activity {
 
     private static final String API_URL = "https://rogeproject.my.id/store/api.php";
 
+    // Palet Warna Biru Kehijauan (Teal / Cyan Ocean)
     private final int COLOR_BG_TOP = Color.parseColor("#041C2C");
     private final int COLOR_BG_BOTTOM = Color.parseColor("#073B4C");
-    private final int COLOR_CARD_BG = Color.parseColor("#660A2E40");
-    private final int COLOR_CARD_FOCUS = Color.parseColor("#CC0D4B63");
+    private final int COLOR_CARD_BG = Color.parseColor("#CC06202E");
+    private final int COLOR_CARD_FOCUS = Color.parseColor("#E60B3E54");
     private final int COLOR_ACCENT = Color.parseColor("#00E5FF");
     private final int COLOR_ACCENT_TEAL = Color.parseColor("#00BFA5");
-    private final int COLOR_BORDER = Color.parseColor("#4D00E5FF");
+    private final int COLOR_BORDER = Color.parseColor("#8000E5FF");
     private final int COLOR_TEXT_SUB = Color.parseColor("#80CBC4");
 
     private FrameLayout contentArea;
@@ -102,6 +103,10 @@ public class MainActivity extends Activity {
         if (appAdapter != null) {
             appAdapter.notifyDataSetChanged();
         }
+    }
+
+    private int getDrawableId(String name) {
+        return getResources().getIdentifier(name, "drawable", getPackageName());
     }
 
     private String getDeviceModel() {
@@ -144,14 +149,20 @@ public class MainActivity extends Activity {
     private void setupMainLayout() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.HORIZONTAL);
-        GradientDrawable mainBg = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[]{COLOR_BG_TOP, COLOR_BG_BOTTOM, Color.parseColor("#052638")}
-        );
-        root.setBackground(mainBg);
+
+        int bgResId = getDrawableId("bg");
+        if (bgResId != 0) {
+            root.setBackgroundResource(bgResId);
+        } else {
+            GradientDrawable mainBg = new GradientDrawable(
+                    GradientDrawable.Orientation.TL_BR,
+                    new int[]{COLOR_BG_TOP, COLOR_BG_BOTTOM, Color.parseColor("#052638")}
+            );
+            root.setBackground(mainBg);
+        }
         root.setPadding(dp(28), dp(24), dp(28), dp(24));
 
-        // SIDEBAR KIRI
+        // ================= 1. SIDEBAR KIRI =================
         LinearLayout sidebar = new LinearLayout(this);
         sidebar.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams sideParams = new LinearLayout.LayoutParams(dp(230), ViewGroup.LayoutParams.MATCH_PARENT);
@@ -163,21 +174,17 @@ public class MainActivity extends Activity {
         brandBox.setGravity(Gravity.CENTER_VERTICAL);
         brandBox.setPadding(0, 0, 0, dp(22));
 
-        TextView logoBadge = new TextView(this);
-        logoBadge.setText("R");
-        logoBadge.setTextColor(Color.WHITE);
-        logoBadge.setTextSize(24);
-        logoBadge.setTypeface(null, Typeface.BOLD);
-        logoBadge.setGravity(Gravity.CENTER);
-        GradientDrawable logoBg = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR,
-                new int[]{COLOR_ACCENT, COLOR_ACCENT_TEAL}
-        );
-        logoBg.setCornerRadius(dp(12));
-        logoBadge.setBackground(logoBg);
-        LinearLayout.LayoutParams lbParams = new LinearLayout.LayoutParams(dp(48), dp(48));
+        ImageView logoImage = new ImageView(this);
+        int logoResId = getDrawableId("logo");
+        if (logoResId != 0) {
+            logoImage.setImageResource(logoResId);
+        } else {
+            logoImage.setImageResource(android.R.drawable.sym_def_app_icon);
+        }
+        logoImage.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        LinearLayout.LayoutParams lbParams = new LinearLayout.LayoutParams(dp(56), dp(56));
         lbParams.rightMargin = dp(12);
-        brandBox.addView(logoBadge, lbParams);
+        brandBox.addView(logoImage, lbParams);
 
         LinearLayout brandTextLayout = new LinearLayout(this);
         brandTextLayout.setOrientation(LinearLayout.VERTICAL);
@@ -231,7 +238,7 @@ public class MainActivity extends Activity {
 
         root.addView(sidebar);
 
-        // AREA KONTEN KANAN
+        // ================= 2. AREA KONTEN KANAN =================
         contentArea = new FrameLayout(this);
         LinearLayout.LayoutParams contentParams = new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.MATCH_PARENT, 1f);
@@ -269,7 +276,7 @@ public class MainActivity extends Activity {
         tv.setTypeface(null, Typeface.BOLD);
         btn.addView(tv);
 
-        applyFocusStyle(btn, Color.TRANSPARENT, Color.parseColor("#3300E5FF"), Color.TRANSPARENT, COLOR_ACCENT, 12);
+        applyFocusStyle(btn, Color.parseColor("#66041C2C"), Color.parseColor("#6600E5FF"), Color.TRANSPARENT, COLOR_ACCENT, 12);
         btn.setOnClickListener(v -> onClick.run());
         return btn;
     }
@@ -280,6 +287,7 @@ public class MainActivity extends Activity {
         pagePengaturan.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
     }
 
+    // ================= HALAMAN 1: BERANDA =================
     private View buildBerandaPage() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -288,44 +296,73 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.addView(buildTopHeader(false));
 
-        LinearLayout hero = new LinearLayout(this);
-        hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(28), dp(28), dp(28), dp(28));
-        GradientDrawable heroBg = new GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{Color.parseColor("#004D40"), Color.parseColor("#006064"), Color.parseColor("#01579B")}
-        );
-        heroBg.setCornerRadius(dp(16));
-        heroBg.setStroke(dp(1), COLOR_ACCENT);
-        hero.setBackground(heroBg);
-        LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        heroParams.topMargin = dp(14);
-        heroParams.bottomMargin = dp(16);
-        hero.setLayoutParams(heroParams);
+        int heroResId = getDrawableId("hero");
+        if (heroResId != 0) {
+            ImageView heroImg = new ImageView(this);
+            heroImg.setImageResource(heroResId);
+            heroImg.setScaleType(ImageView.ScaleType.FIT_XY);
+            heroImg.setAdjustViewBounds(true);
+            LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(195));
+            imgParams.topMargin = dp(14);
+            imgParams.bottomMargin = dp(16);
+            heroImg.setLayoutParams(imgParams);
+            container.addView(heroImg);
+        } else {
+            LinearLayout hero = new LinearLayout(this);
+            hero.setOrientation(LinearLayout.HORIZONTAL);
+            hero.setGravity(Gravity.CENTER_VERTICAL);
+            hero.setPadding(dp(28), dp(24), dp(28), dp(24));
+            GradientDrawable heroBg = new GradientDrawable(
+                    GradientDrawable.Orientation.LEFT_RIGHT,
+                    new int[]{Color.parseColor("#E6004D40"), Color.parseColor("#E6006064"), Color.parseColor("#E601579B")}
+            );
+            heroBg.setCornerRadius(dp(16));
+            heroBg.setStroke(dp(1), COLOR_ACCENT);
+            hero.setBackground(heroBg);
+            LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            heroParams.topMargin = dp(14);
+            heroParams.bottomMargin = dp(16);
+            hero.setLayoutParams(heroParams);
 
-        TextView heroTitle = new TextView(this);
-        heroTitle.setText("ROGE STORE TV");
-        heroTitle.setTextColor(COLOR_ACCENT);
-        heroTitle.setTextSize(26);
-        heroTitle.setTypeface(null, Typeface.BOLD);
+            int logoResId = getDrawableId("logo");
+            if (logoResId != 0) {
+                ImageView bigLogo = new ImageView(this);
+                bigLogo.setImageResource(logoResId);
+                bigLogo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+                LinearLayout.LayoutParams blParams = new LinearLayout.LayoutParams(dp(92), dp(92));
+                blParams.rightMargin = dp(24);
+                hero.addView(bigLogo, blParams);
+            }
 
-        TextView heroSub = new TextView(this);
-        heroSub.setText("Pusat aplikasi resmi untuk Android TV & Set-Top Box Anda.\nTemukan dan pasang aplikasi streaming & utilitas terbaik dengan cepat, aman, dan ringan.");
-        heroSub.setTextColor(Color.WHITE);
-        heroSub.setTextSize(13);
-        heroSub.setPadding(0, dp(8), 0, dp(14));
+            LinearLayout heroTextCol = new LinearLayout(this);
+            heroTextCol.setOrientation(LinearLayout.VERTICAL);
 
-        TextView heroBadges = new TextView(this);
-        heroBadges.setText("✔ Koleksi Lengkap     ✔ Aman & Teruji     ✔ Unduhan Cepat     ✔ Khusus Android TV");
-        heroBadges.setTextColor(COLOR_TEXT_SUB);
-        heroBadges.setTextSize(12);
-        heroBadges.setTypeface(null, Typeface.BOLD);
+            TextView heroTitle = new TextView(this);
+            heroTitle.setText("ROGE STORE TV");
+            heroTitle.setTextColor(COLOR_ACCENT);
+            heroTitle.setTextSize(26);
+            heroTitle.setTypeface(null, Typeface.BOLD);
 
-        hero.addView(heroTitle);
-        hero.addView(heroSub);
-        hero.addView(heroBadges);
-        container.addView(hero);
+            TextView heroSub = new TextView(this);
+            heroSub.setText("Pusat aplikasi resmi untuk Android TV & Set-Top Box Anda.\nTemukan dan pasang aplikasi streaming & utilitas terbaik dengan cepat, aman, dan ringan.");
+            heroSub.setTextColor(Color.WHITE);
+            heroSub.setTextSize(13);
+            heroSub.setPadding(0, dp(6), 0, dp(12));
+
+            TextView heroBadges = new TextView(this);
+            heroBadges.setText("✔ Koleksi Lengkap     ✔ Aman & Teruji     ✔ Unduhan Cepat     ✔ Khusus Android TV");
+            heroBadges.setTextColor(COLOR_TEXT_SUB);
+            heroBadges.setTextSize(12);
+            heroBadges.setTypeface(null, Typeface.BOLD);
+
+            heroTextCol.addView(heroTitle);
+            heroTextCol.addView(heroSub);
+            heroTextCol.addView(heroBadges);
+            hero.addView(heroTextCol);
+            container.addView(hero);
+        }
 
         container.addView(buildActionCard(
                 "Perangkat aktif",
@@ -392,6 +429,7 @@ public class MainActivity extends Activity {
         return card;
     }
 
+    // ================= HALAMAN 2: DAFTAR APLIKASI =================
     private View buildAplikasiPage() {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
@@ -428,6 +466,7 @@ public class MainActivity extends Activity {
         return container;
     }
 
+    // ================= HALAMAN 3: PENGATURAN =================
     private View buildPengaturanPage() {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
@@ -795,239 +834,4 @@ public class MainActivity extends Activity {
             actionBtn.setGravity(Gravity.CENTER);
             actionBtn.setPadding(dp(24), dp(10), dp(24), dp(10));
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT);
-            btnParams.leftMargin = dp(16);
-            actionBtn.setLayoutParams(btnParams);
-
-            if (status == 1) {
-                actionBtn.setText("Buka");
-                actionBtn.setTextColor(Color.WHITE);
-                actionBtn.setBackground(createBox(Color.parseColor("#0288D1"), COLOR_ACCENT, 1, 10));
-            } else if (status == 2) {
-                actionBtn.setText("Update");
-                actionBtn.setTextColor(Color.BLACK);
-                actionBtn.setBackground(createBox(Color.parseColor("#FFC107"), Color.WHITE, 1, 10));
-            } else {
-                actionBtn.setText("Install");
-                actionBtn.setTextColor(Color.BLACK);
-                actionBtn.setBackground(createBox(COLOR_ACCENT, Color.WHITE, 1, 10));
-            }
-            row.addView(actionBtn);
-
-            row.setOnClickListener(v -> showAppDetailDialog(item));
-            return row;
-        }
-    }
-
-    private void showAppDetailDialog(AppItem item) {
-        int status = getAppStatus(item.packageName, item.versionCode);
-        AlertDialog.Builder b = new AlertDialog.Builder(this);
-        b.setTitle(item.name + " (v" + item.versionName + ")");
-        b.setMessage("Ukuran: " + item.size + "\nPackage: " + item.packageName + "\n\n" + item.description);
-
-        if (status == 0) {
-            b.setPositiveButton("Install Sekarang", (d, w) -> startDownloadAndInstall(item));
-        } else if (status == 2) {
-            b.setPositiveButton("Update Aplikasi", (d, w) -> startDownloadAndInstall(item));
-            b.setNeutralButton("Buka", (d, w) -> openApp(item.packageName));
-        } else {
-            b.setPositiveButton("Buka Aplikasi", (d, w) -> openApp(item.packageName));
-            b.setNeutralButton("Install Ulang", (d, w) -> startDownloadAndInstall(item));
-        }
-        b.setNegativeButton("Batal", null);
-        b.show();
-    }
-
-    private void openApp(String packageName) {
-        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(packageName);
-        if (launchIntent != null) {
-            startActivity(launchIntent);
-        } else {
-            Toast.makeText(this, "Aplikasi tidak dapat dibuka langsung.", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void cleanOldApks(File dir) {
-        if (dir != null && dir.exists()) {
-            File[] files = dir.listFiles();
-            if (files != null) {
-                for (File f : files) {
-                    if (f.getName().endsWith(".apk")) {
-                        f.delete();
-                    }
-                }
-            }
-        }
-    }
-
-    private void startDownloadAndInstall(AppItem item) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!getPackageManager().canRequestPackageInstalls()) {
-                Toast.makeText(this, "Berikan izin install aplikasi untuk Roge Store!", Toast.LENGTH_LONG).show();
-                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
-                return;
-            }
-        }
-
-        ProgressDialog pd = new ProgressDialog(this);
-        pd.setTitle("Mengunduh " + item.name);
-        pd.setMessage("Mohon tunggu...");
-        pd.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-        pd.setCancelable(false);
-        pd.setMax(100);
-        pd.show();
-
-        executor.execute(() -> {
-            try {
-                cleanOldApks(getExternalCacheDir());
-                cleanOldApks(getCacheDir());
-
-                URL url = new URL(item.apkUrl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setInstanceFollowRedirects(true);
-                conn.setUseCaches(false);
-                conn.setRequestProperty("Cache-Control", "no-cache");
-                conn.connect();
-
-                int responseCode = conn.getResponseCode();
-                if (responseCode != HttpURLConnection.HTTP_OK) {
-                    throw new Exception("Server merespon kode HTTP " + responseCode);
-                }
-
-                int fileLength = conn.getContentLength();
-                File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
-                File apkFile = new File(cacheDir, "update_" + System.currentTimeMillis() + ".apk");
-
-                InputStream input = conn.getInputStream();
-                FileOutputStream output = new FileOutputStream(apkFile);
-
-                byte[] data = new byte[8192];
-                long total = 0;
-                int count;
-                while ((count = input.read(data)) != -1) {
-                    total += count;
-                    if (fileLength > 0) {
-                        int progress = (int) (total * 100 / fileLength);
-                        mainHandler.post(() -> pd.setProgress(progress));
-                    }
-                    output.write(data, 0, count);
-                }
-                output.flush();
-                output.close();
-                input.close();
-                apkFile.setReadable(true, false);
-
-                mainHandler.post(() -> {
-                    pd.dismiss();
-                    verifyAndInstallApk(apkFile);
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    pd.dismiss();
-                    Toast.makeText(MainActivity.this, "Gagal mengunduh: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
-            }
-        });
-    }
-
-    // Validasi integritas file APK & kecocokan Signature sebelum memanggil PackageInstaller
-    private void verifyAndInstallApk(File apkFile) {
-        try {
-            PackageManager pm = getPackageManager();
-            PackageInfo archiveInfo = pm.getPackageArchiveInfo(apkFile.getAbsolutePath(), PackageManager.GET_SIGNATURES);
-            if (archiveInfo == null) {
-                new AlertDialog.Builder(this)
-                        .setTitle("File APK Rusak / Tidak Valid")
-                        .setMessage("File yang diunduh dari server bukan file APK yang valid (Ukuran: " + (apkFile.length() / 1024) + " KB).")
-                        .setPositiveButton("Tutup", null)
-                        .show();
-                return;
-            }
-
-            String pkgName = archiveInfo.packageName;
-            int newVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-                    ? (int) archiveInfo.getLongVersionCode() : archiveInfo.versionCode;
-
-            try {
-                PackageInfo installedInfo = pm.getPackageInfo(pkgName, PackageManager.GET_SIGNATURES);
-                int installedVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
-                        ? (int) installedInfo.getLongVersionCode() : installedInfo.versionCode;
-
-                // Cek apakah Signature (Keystore) APK lama berbeda dengan APK baru
-                if (installedInfo.signatures != null && archiveInfo.signatures != null
-                        && installedInfo.signatures.length > 0 && archiveInfo.signatures.length > 0) {
-                    Signature oldSig = installedInfo.signatures[0];
-                    Signature newSig = archiveInfo.signatures[0];
-                    if (!oldSig.equals(newSig)) {
-                        new AlertDialog.Builder(this)
-                                .setTitle("Konflik Kunci Sertifikat (Keystore)")
-                                .setMessage("Aplikasi " + pkgName + " yang terpasang di perangkat saat ini menggunakan kunci lama yang berbeda dengan APK baru di server.\n\nAndroid menolak menimpa aplikasi dengan kunci berbeda. Silakan hapus (Uninstall) versi lama terlebih dahulu.")
-                                .setPositiveButton("Uninstall Versi Lama", (d, w) -> {
-                                    Intent uninstallIntent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkgName));
-                                    startActivity(uninstallIntent);
-                                })
-                                .setNegativeButton("Batal", null)
-                                .show();
-                        return;
-                    }
-                }
-
-                // Cek jika versi APK di server lebih rendah dari yang sudah terpasang
-                if (newVerCode < installedVerCode) {
-                    new AlertDialog.Builder(this)
-                            .setTitle("Versi APK Lebih Rendah (Downgrade)")
-                            .setMessage("APK yang diunduh memiliki Build " + newVerCode + ", sedangkan yang sudah terpasang adalah Build " + installedVerCode + ".")
-                            .setPositiveButton("Tetap Coba Install", (d, w) -> launchSystemInstaller(apkFile))
-                            .setNegativeButton("Batal", null)
-                            .show();
-                    return;
-                }
-            } catch (PackageManager.NameNotFoundException ignored) {
-                // Aplikasi belum terpasang, aman untuk langsung diinstal
-            }
-
-            launchSystemInstaller(apkFile);
-        } catch (Exception e) {
-            launchSystemInstaller(apkFile);
-        }
-    }
-
-    private void launchSystemInstaller(File apkFile) {
-        try {
-            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
-            Uri apkUri;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                apkUri = Uri.parse("content://" + getPackageName() + ".provider/" + apkFile.getName());
-                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-                intent.setClipData(ClipData.newRawUri("", apkUri));
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } else {
-                apkUri = Uri.fromFile(apkFile);
-                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-            }
-            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startActivity(intent);
-        } catch (Exception e) {
-            Toast.makeText(this, "Gagal memicu instalasi: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void loadIcon(String url, ImageView imageView) {
-        if (url.isEmpty()) return;
-        if (iconCache.containsKey(url)) {
-            imageView.setImageBitmap(iconCache.get(url));
-            return;
-        }
-        executor.execute(() -> {
-            try {
-                InputStream in = new URL(url).openStream();
-                Bitmap bmp = BitmapFactory.decodeStream(in);
-                in.close();
-                if (bmp != null) {
-                    iconCache.put(url, bmp);
-                    mainHandler.post(() -> imageView.setImageBitmap(bmp));
-                }
-            } catch (Exception ignored) {}
-        });
-    }
-}
+            btnParams.left
