@@ -24,76 +24,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Validasi & Perbaiki Folder Drawable
+      - name: Validasi & Konversi Gambar Drawable
         run: |
-          python3 - << 'EOF'
-          import os, re, struct, zlib
-
-          d = "app/src/main/res/drawable"
-          os.makedirs(d, exist_ok=True)
-
-          for f in os.listdir(d):
-              p = os.path.join(d, f)
-              if not os.path.isfile(p):
-                  continue
-              if f.startswith(".") or not f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-                  print("Hapus file sampah:", f)
-                  os.remove(p)
-                  continue
-              clean_f = re.sub(r"[^a-z0-9_.]", "_", f.lower())
-              if clean_f != f:
-                  clean_p = os.path.join(d, clean_f)
-                  if os.path.exists(clean_p):
-                      os.remove(clean_p)
-                  os.rename(p, clean_p)
-                  p, f = clean_p, clean_f
-              with open(p, "rb") as fp:
-                  head = fp.read(4)
-              if f.lower().endswith(".png") and head[:3] == b"\xff\xd8\xff":
-                  new_p = os.path.splitext(p)[0] + ".jpg"
-                  if os.path.exists(new_p):
-                      os.remove(new_p)
-                  os.rename(p, new_p)
-                  print("Ubah fake PNG ke JPG:", f, "->", os.path.basename(new_p))
-
-          seen = {}
-          for f in sorted(os.listdir(d)):
-              p = os.path.join(d, f)
-              if not os.path.isfile(p):
-                  continue
-              base = os.path.splitext(f)[0].lower()
-              if base in seen:
-                  print("Hapus duplikat:", f)
-                  os.remove(p)
-              else:
-                  seen[base] = f
-
-          def make_png(path, w, h, rgba):
-              raw = b"".join(b"\x00" + bytes(rgba) * w for _ in range(h))
-              def chunk(tag, data):
-                  return struct.pack("!I", len(data)) + tag + data + struct.pack("!I", zlib.crc32(tag + data) & 0xffffffff)
-              png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack("!IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b"")
-              with open(path, "wb") as fp:
-                  fp.write(png)
-
-          if "logo" not in seen:
-              make_png(os.path.join(d, "logo.png"), 64, 64, (0, 229, 255, 255))
-              print("Buat fallback logo.png")
-          if "banner" not in seen:
-              make_png(os.path.join(d, "banner.png"), 320, 180, (4, 28, 44, 255))
-              print("Buat fallback banner.png")
-
-          print("Isi final drawable:", os.listdir(d))
-          EOF
+          mkdir -p app/src/main/res/drawable
+          find app/src/main/res/drawable -type f ! \( -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.webp" \) -delete
+          python3 -m pip install --break-system-packages -q pillow || true
+          python3 -c 'import os; from PIL import Image; d="app/src/main/res/drawable"; [ (Image.open(os.path.join(d,f)).convert("RGBA").save(os.path.join(d,os.path.splitext(f)[0].lower()+".png"),"PNG"), os.remove(os.path.join(d,f)) if not f.endswith(".png") or f!=f.lower() else None) for f in list(os.listdir(d)) if os.path.isfile(os.path.join(d,f)) ]; [ Image.new("RGBA",(64,64),(0,229,255,255)).save(os.path.join(d,n)) for n in ["logo.png","banner.png"] if not os.path.exists(os.path.join(d,n)) ]; print("Drawable OK:", os.listdir(d))'
 
       - name: Pastikan roge.keystore Permanen Tersedia
         run: |
           if [ ! -f "roge.keystore" ]; then
-            echo "Membuat roge.keystore permanen..."
-            keytool -genkey -v -keystore roge.keystore \
-              -storepass android -alias androiddebugkey -keypass android \
-              -keyalg RSA -keysize 2048 -validity 10000 \
-              -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
+            keytool -genkey -v -keystore roge.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add roge.keystore
@@ -103,7 +44,7 @@ jobs:
           fi
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.4'
 
@@ -113,11 +54,7 @@ jobs:
       - name: Kirim APK Otomatis ke VPS (rogeproject.my.id)
         run: |
           VER_CODE=$((1000 + ${{ github.run_number }}))
-          RESPONSE=$(curl -s -X POST "https://rogeproject.my.id/store/admin.php" \
-            -F "github_auto_deploy=1" \
-            -F "secret_key=${{ secrets.STORE_SECRET }}" \
-            -F "version_code=$VER_CODE" \
-            -F "store_apk=@app/build/outputs/apk/debug/app-debug.apk")
+          RESPONSE=$(curl -s -X POST "https://rogeproject.my.id/store/admin.php" -F "github_auto_deploy=1" -F "secret_key=${{ secrets.STORE_SECRET }}" -F "version_code=$VER_CODE" -F "store_apk=@app/build/outputs/apk/debug/app-debug.apk")
           echo "Versi dikirim: $VER_CODE | Respon Server VPS: $RESPONSE"
 
       - name: Upload APK Artifact
