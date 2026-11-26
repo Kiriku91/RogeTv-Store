@@ -24,6 +24,49 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Validasi & Perbaiki Format Gambar Drawable
+        run: |
+          python3 -c '
+          import os, re
+          d = "app/src/main/res/drawable"
+          if os.path.isdir(d):
+              for f in os.listdir(d):
+                  p = os.path.join(d, f)
+                  if not os.path.isfile(p):
+                      continue
+                  if f.startswith(".") or not f.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                      print("Menghapus file tidak valid di drawable:", f)
+                      os.remove(p)
+                      continue
+                  clean_f = re.sub(r"[^a-z0-9_.]", "_", f.lower())
+                  if clean_f != f:
+                      clean_p = os.path.join(d, clean_f)
+                      if os.path.exists(clean_p):
+                          os.remove(clean_p)
+                      os.rename(p, clean_p)
+                      p, f = clean_p, clean_f
+                  with open(p, "rb") as fp:
+                      head = fp.read(4)
+                  if f.lower().endswith(".png") and head[:3] == b"\xff\xd8\xff":
+                      new_p = os.path.splitext(p)[0] + ".jpg"
+                      if os.path.exists(new_p):
+                          os.remove(new_p)
+                      os.rename(p, new_p)
+                      print("Perbaikan otomatis fake PNG ke JPG:", f, "->", os.path.basename(new_p))
+              seen = {}
+              for f in sorted(os.listdir(d)):
+                  p = os.path.join(d, f)
+                  if not os.path.isfile(p):
+                      continue
+                  base = os.path.splitext(f)[0].lower()
+                  if base in seen:
+                      print("Menghapus duplikat resource:", f)
+                      os.remove(p)
+                  else:
+                      seen[base] = f
+              print("Isi final folder drawable:", os.listdir(d))
+          '
+
       - name: Pastikan roge.keystore Permanen Tersedia
         run: |
           if [ ! -f "roge.keystore" ]; then
@@ -34,10 +77,10 @@ jobs:
               -dname "CN=RogeStore, OU=TV, O=RogeProject, L=Padang, S=Sumbar, C=ID"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git pull --rebase origin ${{ github.ref_name }}
             git add roge.keystore
-            git commit -m "Simpan roge.keystore permanen [skip ci]"
-            git push origin ${{ github.ref_name }}
+            git commit -m "Simpan roge.keystore permanen [skip ci]" || true
+            git pull --rebase origin ${{ github.ref_name }} || true
+            git push origin HEAD:${{ github.ref_name }} || echo "Skip push keystore"
           fi
 
       - name: Setup Gradle
