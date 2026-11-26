@@ -56,7 +56,6 @@ public class MainActivity extends Activity {
 
     private static final String API_URL = "https://rogeproject.my.id/store/api.php";
 
-    // Palet Warna Biru Kehijauan (Teal / Cyan Ocean)
     private final int COLOR_BG_TOP = Color.parseColor("#041C2C");
     private final int COLOR_BG_BOTTOM = Color.parseColor("#073B4C");
     private final int COLOR_CARD_BG = Color.parseColor("#CC06202E");
@@ -834,4 +833,234 @@ public class MainActivity extends Activity {
             actionBtn.setGravity(Gravity.CENTER);
             actionBtn.setPadding(dp(24), dp(10), dp(24), dp(10));
             LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT);
-            btnParams.left
+            btnParams.leftMargin = dp(16);
+            actionBtn.setLayoutParams(btnParams);
+
+            if (status == 1) {
+                actionBtn.setText("Buka");
+                actionBtn.setTextColor(Color.WHITE);
+                actionBtn.setBackground(createBox(Color.parseColor("#0288D1"), COLOR_ACCENT, 1, 10));
+            } else if (status == 2) {
+                actionBtn.setText("Update");
+                actionBtn.setTextColor(Color.BLACK);
+                actionBtn.setBackground(createBox(Color.parseColor("#FFC107"), Color.WHITE, 1, 10));
+            } else {
+                actionBtn.setText("Install");
+                actionBtn.setTextColor(Color.BLACK);
+                actionBtn.setBackground(createBox(COLOR_ACCENT, Color.WHITE, 1, 10));
+            }
+            row.addView(actionBtn);
+
+            row.setOnClickListener(v -> showAppDetailDialog(item));
+            return row;
+        }
+    }
+
+    private void showAppDetailDialog(AppItem item) {
+        int status = getAppStatus(item.packageName, item.versionCode);
+        AlertDialog.Builder b = new AlertDialog.Builder(this);
+        b.setTitle(item.name + " (v" + item.versionName + ")");
+        b.setMessage("Ukuran: " + item.size + "\nPackage: " + item.packageName + "\n\n" + item.description);
+
+        if (status == 0) {
+            b.setPositiveButton("Install Sekarang", (d, w) -> startDownloadAndInstall(item));
+        } else if (status == 2) {
+            b.setPositiveButton("Update Aplikasi", (d, w) -> startDownloadAndInstall(item));
+            b.setNeutralButton("Buka", (d, w) -> openApp(item.packageName));
+        } else {
+            b.setPositiveButton("Buka Aplikasi", (d, w) -> openApp(item.packageName));
+            b.setNeutralButton("Install Ulang", (d, w) -> startDownloadAndInstall(item));
+        }
+        b.setNegativeButton("Batal", null);
+        b.show();
+    }
+
+    private void openApp(String packageName) {
+        Intent launchIntent = getPackageManager().getLaunchIntentForPackage(packageName);
+        if (launchIntent != null) {
+            startActivity(launchIntent);
+        } else {
+            Toast.makeText(this, "Aplikasi tidak dapat dibuka langsung.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void cleanOldApks(File dir) {
+        if (dir != null && dir.exists()) {
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File f : files) {
+                    if (f.getName().endsWith(".apk")) {
+                        f.delete();
+                    }
+                }
+            }
+        }
+    }
+
+    private void startDownloadAndInstall(AppItem item) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!getPackageManager().canRequestPackageInstalls()) {
+                Toast.makeText(this, "Berikan izin install aplikasi untuk Roge Store!", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+                return;
+            }
+        }
+
+        ProgressDialog pd = new ProgressDialog(this);
+        pd.setTitle("Mengunduh " + item.name);
+        pd.setMessage("Mohon tunggu...");
+        pd.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+        pd.setCancelable(false);
+        pd.setMax(100);
+        pd.show();
+
+        executor.execute(() -> {
+            try {
+                cleanOldApks(getExternalCacheDir());
+                cleanOldApks(getCacheDir());
+
+                URL url = new URL(item.apkUrl);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setInstanceFollowRedirects(true);
+                conn.setUseCaches(false);
+                conn.setRequestProperty("Cache-Control", "no-cache");
+                conn.connect();
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw new Exception("Server merespon kode HTTP " + responseCode);
+                }
+
+                int fileLength = conn.getContentLength();
+                File cacheDir = getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir();
+                File apkFile = new File(cacheDir, "update_" + System.currentTimeMillis() + ".apk");
+
+                InputStream input = conn.getInputStream();
+                FileOutputStream output = new FileOutputStream(apkFile);
+
+                byte[] data = new byte[8192];
+                long total = 0;
+                int count;
+                while ((count = input.read(data)) != -1) {
+                    total += count;
+                    if (fileLength > 0) {
+                        int progress = (int) (total * 100 / fileLength);
+                        mainHandler.post(() -> pd.setProgress(progress));
+                    }
+                    output.write(data, 0, count);
+                }
+                output.flush();
+                output.close();
+                input.close();
+                apkFile.setReadable(true, false);
+
+                mainHandler.post(() -> {
+                    pd.dismiss();
+                    verifyAndInstallApk(apkFile);
+                });
+            } catch (Exception e) {
+                mainHandler.post(() -> {
+                    pd.dismiss();
+                    Toast.makeText(MainActivity.this, "Gagal mengunduh: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void verifyAndInstallApk(File apkFile) {
+        try {
+            PackageManager pm = getPackageManager();
+            PackageInfo archiveInfo = pm.getPackageArchiveInfo(apkFile.getAbsolutePath(), PackageManager.GET_SIGNATURES);
+            if (archiveInfo == null) {
+                new AlertDialog.Builder(this)
+                        .setTitle("File APK Rusak / Tidak Valid")
+                        .setMessage("File yang diunduh dari server bukan file APK yang valid (Ukuran: " + (apkFile.length() / 1024) + " KB).")
+                        .setPositiveButton("Tutup", null)
+                        .show();
+                return;
+            }
+
+            String pkgName = archiveInfo.packageName;
+            int newVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                    ? (int) archiveInfo.getLongVersionCode() : archiveInfo.versionCode;
+
+            try {
+                PackageInfo installedInfo = pm.getPackageInfo(pkgName, PackageManager.GET_SIGNATURES);
+                int installedVerCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                        ? (int) installedInfo.getLongVersionCode() : installedInfo.versionCode;
+
+                if (installedInfo.signatures != null && archiveInfo.signatures != null
+                        && installedInfo.signatures.length > 0 && archiveInfo.signatures.length > 0) {
+                    Signature oldSig = installedInfo.signatures[0];
+                    Signature newSig = archiveInfo.signatures[0];
+                    if (!oldSig.equals(newSig)) {
+                        new AlertDialog.Builder(this)
+                                .setTitle("Konflik Kunci Sertifikat (Keystore)")
+                                .setMessage("Aplikasi " + pkgName + " yang terpasang di perangkat saat ini menggunakan kunci lama yang berbeda dengan APK baru di server.\n\nAndroid menolak menimpa aplikasi dengan kunci berbeda. Silakan hapus (Uninstall) versi lama terlebih dahulu.")
+                                .setPositiveButton("Uninstall Versi Lama", (d, w) -> {
+                                    Intent uninstallIntent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + pkgName));
+                                    startActivity(uninstallIntent);
+                                })
+                                .setNegativeButton("Batal", null)
+                                .show();
+                        return;
+                    }
+                }
+
+                if (newVerCode < installedVerCode) {
+                    new AlertDialog.Builder(this)
+                            .setTitle("Versi APK Lebih Rendah (Downgrade)")
+                            .setMessage("APK yang diunduh memiliki Build " + newVerCode + ", sedangkan yang sudah terpasang adalah Build " + installedVerCode + ".")
+                            .setPositiveButton("Tetap Coba Install", (d, w) -> launchSystemInstaller(apkFile))
+                            .setNegativeButton("Batal", null)
+                            .show();
+                    return;
+                }
+            } catch (PackageManager.NameNotFoundException ignored) {}
+
+            launchSystemInstaller(apkFile);
+        } catch (Exception e) {
+            launchSystemInstaller(apkFile);
+        }
+    }
+
+    private void launchSystemInstaller(File apkFile) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+            Uri apkUri;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                apkUri = Uri.parse("content://" + getPackageName() + ".provider/" + apkFile.getName());
+                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                intent.setClipData(ClipData.newRawUri("", apkUri));
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            } else {
+                apkUri = Uri.fromFile(apkFile);
+                intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            }
+            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        } catch (Exception e) {
+            Toast.makeText(this, "Gagal memicu instalasi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void loadIcon(String url, ImageView imageView) {
+        if (url.isEmpty()) return;
+        if (iconCache.containsKey(url)) {
+            imageView.setImageBitmap(iconCache.get(url));
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                InputStream in = new URL(url).openStream();
+                Bitmap bmp = BitmapFactory.decodeStream(in);
+                in.close();
+                if (bmp != null) {
+                    iconCache.put(url, bmp);
+                    mainHandler.post(() -> imageView.setImageBitmap(bmp));
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+}
