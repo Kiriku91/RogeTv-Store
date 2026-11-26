@@ -12,6 +12,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -58,8 +59,8 @@ public class MainActivity extends Activity {
 
     private final int COLOR_BG_TOP = Color.parseColor("#041C2C");
     private final int COLOR_BG_BOTTOM = Color.parseColor("#073B4C");
-    private final int COLOR_CARD_BG = Color.parseColor("#CC06202E");
-    private final int COLOR_CARD_FOCUS = Color.parseColor("#E60B3E54");
+    private final int COLOR_CARD_BG = Color.parseColor("#A6051E2B");
+    private final int COLOR_CARD_FOCUS = Color.parseColor("#D90B3E54");
     private final int COLOR_ACCENT = Color.parseColor("#00E5FF");
     private final int COLOR_ACCENT_TEAL = Color.parseColor("#00BFA5");
     private final int COLOR_BORDER = Color.parseColor("#8000E5FF");
@@ -108,6 +109,28 @@ public class MainActivity extends Activity {
         return getResources().getIdentifier(name, "drawable", getPackageName());
     }
 
+    private Bitmap loadSafeBitmap(int resId, int reqW, int reqH) {
+        if (resId == 0) return null;
+        try {
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inJustDecodeBounds = true;
+            BitmapFactory.decodeResource(getResources(), resId, opts);
+            int inSampleSize = 1;
+            if (opts.outHeight > reqH || opts.outWidth > reqW) {
+                int halfH = opts.outHeight / 2;
+                int halfW = opts.outWidth / 2;
+                while ((halfH / inSampleSize) >= reqH && (halfW / inSampleSize) >= reqW) {
+                    inSampleSize *= 2;
+                }
+            }
+            opts.inSampleSize = inSampleSize;
+            opts.inJustDecodeBounds = false;
+            return BitmapFactory.decodeResource(getResources(), resId, opts);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
     private String getDeviceModel() {
         if (customDeviceName != null) return customDeviceName;
         String model = Build.MODEL;
@@ -150,8 +173,10 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.HORIZONTAL);
 
         int bgResId = getDrawableId("bg");
-        if (bgResId != 0) {
-            root.setBackgroundResource(bgResId);
+        if (bgResId == 0) bgResId = getDrawableId("background");
+        Bitmap bgBmp = loadSafeBitmap(bgResId, 1280, 720);
+        if (bgBmp != null) {
+            root.setBackground(new BitmapDrawable(getResources(), bgBmp));
         } else {
             GradientDrawable mainBg = new GradientDrawable(
                     GradientDrawable.Orientation.TL_BR,
@@ -275,7 +300,7 @@ public class MainActivity extends Activity {
         tv.setTypeface(null, Typeface.BOLD);
         btn.addView(tv);
 
-        applyFocusStyle(btn, Color.parseColor("#66041C2C"), Color.parseColor("#6600E5FF"), Color.TRANSPARENT, COLOR_ACCENT, 12);
+        applyFocusStyle(btn, Color.parseColor("#80041C2C"), Color.parseColor("#9900E5FF"), Color.TRANSPARENT, COLOR_ACCENT, 12);
         btn.setOnClickListener(v -> onClick.run());
         return btn;
     }
@@ -295,18 +320,26 @@ public class MainActivity extends Activity {
         container.setOrientation(LinearLayout.VERTICAL);
         container.addView(buildTopHeader(false));
 
-        int heroResId = getDrawableId("hero");
-        if (heroResId != 0) {
+        int heroResId = getDrawableId("banner");
+        if (heroResId == 0) heroResId = getDrawableId("hero");
+        Bitmap heroBmp = loadSafeBitmap(heroResId, 1200, 380);
+
+        if (heroBmp != null) {
+            FrameLayout heroWrap = new FrameLayout(this);
+            heroWrap.setPadding(dp(2), dp(2), dp(2), dp(2));
+            heroWrap.setBackground(createBox(COLOR_CARD_BG, COLOR_ACCENT, 1, 16));
+            LinearLayout.LayoutParams wrapParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, dp(185));
+            wrapParams.topMargin = dp(14);
+            wrapParams.bottomMargin = dp(16);
+            heroWrap.setLayoutParams(wrapParams);
+
             ImageView heroImg = new ImageView(this);
-            heroImg.setImageResource(heroResId);
+            heroImg.setImageBitmap(heroBmp);
             heroImg.setScaleType(ImageView.ScaleType.FIT_XY);
-            heroImg.setAdjustViewBounds(true);
-            LinearLayout.LayoutParams imgParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(195));
-            imgParams.topMargin = dp(14);
-            imgParams.bottomMargin = dp(16);
-            heroImg.setLayoutParams(imgParams);
-            container.addView(heroImg);
+            heroWrap.addView(heroImg, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            container.addView(heroWrap);
         } else {
             LinearLayout hero = new LinearLayout(this);
             hero.setOrientation(LinearLayout.HORIZONTAL);
@@ -314,7 +347,7 @@ public class MainActivity extends Activity {
             hero.setPadding(dp(28), dp(24), dp(28), dp(24));
             GradientDrawable heroBg = new GradientDrawable(
                     GradientDrawable.Orientation.LEFT_RIGHT,
-                    new int[]{Color.parseColor("#E6004D40"), Color.parseColor("#E6006064"), Color.parseColor("#E601579B")}
+                    new int[]{Color.parseColor("#CC004D40"), Color.parseColor("#CC006064"), Color.parseColor("#CC01579B")}
             );
             heroBg.setCornerRadius(dp(16));
             heroBg.setStroke(dp(1), COLOR_ACCENT);
